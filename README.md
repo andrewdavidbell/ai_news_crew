@@ -29,7 +29,23 @@ crewai install
 
 ## Running the Project
 
-To kickstart your crew of AI agents and begin task execution, run this from the root folder of your project:
+### Option 1: Streamlit Web Interface (Recommended)
+
+Launch the interactive web interface for a user-friendly experience:
+
+```bash
+uv run streamlit run streamlit_app.py
+```
+
+This will start a local web server (typically at `http://localhost:8501`) where you can:
+- Enter any research topic in the web interface
+- Click "Start Research" to begin the AI crew's work
+- View the generated report directly in your browser
+- No files are created - all output is displayed in the web interface
+
+### Option 2: Command Line Interface
+
+To run the crew from the command line with a predefined topic:
 
 ```bash
 $ crewai run
@@ -37,7 +53,7 @@ $ crewai run
 
 This command initializes the ai-news-crew Crew, assembling the agents and assigning them tasks as defined in your configuration.
 
-This example, unmodified, will run the create a `report.md` file with the output of a research on LLMs in the root folder.
+This example, unmodified, will create a `report.md` file with the output of a research on LLMs in the root folder.
 
 ## Understanding Your Crew
 
