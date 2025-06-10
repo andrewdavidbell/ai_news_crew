@@ -1,0 +1,78 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.4.1
+    container_name: ai-news-crew-clickhouse
+    environment:
+      CLICKHOUSE_PASSWORD: ${OPENLIT_DB_PASSWORD:-OPENLIT}
+      CLICKHOUSE_USER: ${OPENLIT_DB_USER:-default}
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    restart: unless-stopped
+    # Resource limits for local development
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  openlit:
+    image: ghcr.io/openlit/openlit:latest
+    container_name: ai-news-crew-openlit
+    environment:
+      TELEMETRY_ENABLED: "true"
+      INIT_DB_HOST: clickhouse
+      INIT_DB_PORT: 8123
+      INIT_DB_DATABASE: ${OPENLIT_DB_NAME:-openlit}
+      INIT_DB_USERNAME: ${OPENLIT_DB_USER:-default}
+      INIT_DB_PASSWORD: ${OPENLIT_DB_PASSWORD:-OPENLIT}
+      SQLITE_DATABASE_URL: file:/app/client/data/data.db
+      PORT: ${OPENLIT_PORT:-3001}
+      DOCKER_PORT: ${OPENLIT_PORT:-3001}
+    ports:
+      - "${OPENLIT_PORT:-3001}:${OPENLIT_PORT:-3001}"
+    depends_on:
+      - clickhouse
+    volumes:
+      - openlit-data:/app/client/data
+    restart: unless-stopped
+    # Resource limits for local development
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.94.0
+    container_name: ai-news-crew-otel-collector
+    environment:
+      INIT_DB_HOST: clickhouse
+      INIT_DB_PORT: 9000
+      INIT_DB_DATABASE: ${OPENLIT_DB_NAME:-openlit}
+      INIT_DB_USERNAME: ${OPENLIT_DB_USER:-default}
+      INIT_DB_PASSWORD: ${OPENLIT_DB_PASSWORD:-OPENLIT}
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "8888:8888"  # Prometheus metrics
+      - "55679:55679" # zpages extension
+    depends_on:
+      - clickhouse
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    restart: unless-stopped
+    # Resource limits for local development
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+volumes:
+  clickhouse-data:
+    driver: local
+  openlit-data:
+    driver: local

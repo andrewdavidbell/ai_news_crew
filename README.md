@@ -59,6 +59,71 @@ This example, unmodified, will create a `report.md` file with the output of a re
 
 The ai-news-crew Crew is composed of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on a series of tasks, defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your crew.
 
+## OpenLIT Observability (Optional)
+
+This project includes optional OpenLIT integration for comprehensive AI observability, allowing you to monitor agent interactions, task execution metrics, and system performance.
+
+### Prerequisites
+
+- Docker Desktop installed and running
+- At least 2GB of available RAM for OpenLIT services
+- Ports 3001, 4317, 4318, 8123, 8888, 9000, and 55679 available
+
+### Starting OpenLIT Services
+
+To enable observability monitoring:
+
+```bash
+# Start OpenLIT services in the background
+docker compose up -d
+
+# Verify services are running
+docker compose ps
+```
+
+The following services will be available:
+- **OpenLIT Dashboard**: http://localhost:3001 - Main observability interface
+- **ClickHouse**: localhost:8123 - Database for telemetry data
+- **OpenTelemetry Collector**: localhost:4318 - Receives telemetry data
+- **Collector Metrics**: http://localhost:8888/metrics - Prometheus metrics
+- **ZPages**: http://localhost:55679 - Collector debugging interface
+
+### Using with Observability
+
+When OpenLIT services are running, the Streamlit application will automatically send telemetry data to the collector. You can monitor:
+
+- Agent execution traces
+- Task completion metrics
+- Performance statistics
+- Error rates and debugging information
+
+### Stopping OpenLIT Services
+
+```bash
+# Stop and remove containers
+docker compose down
+
+# Stop and remove containers with volumes (clears all data)
+docker compose down -v
+```
+
+### Troubleshooting
+
+**Services won't start:**
+- Ensure Docker Desktop is running
+- Check that required ports are not in use: `lsof -i :3001,4317,4318,8123,9000`
+- Verify available system resources
+
+**No data in dashboard:**
+- Confirm OpenTelemetry Collector is receiving data at http://localhost:55679
+- Check collector logs: `docker compose logs otel-collector`
+- Ensure the Streamlit app is running with OpenLIT integration enabled
+
+**Performance issues:**
+- Resource limits are configured for local development
+- Adjust memory limits in `docker-compose.yml` if needed
+- Monitor resource usage: `docker stats`
+
 ## Support
 
 For support, questions, or feedback regarding the AiNewsCrew Crew or crewAI.
