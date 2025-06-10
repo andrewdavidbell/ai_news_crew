@@ -4,15 +4,52 @@ Streamlit UI for AI News Crew
 A lightweight chat interface for local interaction with the CrewAI framework.
 """
 
+import os
 import warnings
 from datetime import datetime
 
+# Initialize OpenLIT for observability
+import openlit
 import streamlit as st
 
 from src.ai_news_crew.crew import AiNewsCrew
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
+
+
+# Initialize OpenLIT monitoring
+def initialize_openlit():
+    """
+    Initialize OpenLIT observability with local OTLP endpoint.
+    Uses environment variables for configuration with sensible defaults.
+    """
+    try:
+        # Set default OTLP endpoint if not configured
+        if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+            os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4318"
+
+        # Configure sampling rate for local development
+        if not os.getenv("OTEL_TRACES_SAMPLER"):
+            os.environ["OTEL_TRACES_SAMPLER"] = "traceidratio"
+            os.environ["OTEL_TRACES_SAMPLER_ARG"] = "1.0"  # 100% sampling for local dev
+
+        # Set service name for identification
+        if not os.getenv("OTEL_SERVICE_NAME"):
+            os.environ["OTEL_SERVICE_NAME"] = "ai-news-crew"
+
+        # Initialize OpenLIT with environment variable configuration
+        openlit.init()
+
+        return True
+    except Exception as e:
+        # Gracefully handle OpenLIT initialization failures
+        st.warning(f"⚠️ OpenLIT monitoring unavailable: {str(e)}")
+        return False
+
+
+# Initialize monitoring on module load
+OPENLIT_ENABLED = initialize_openlit()
 
 
 def validate_topic_input(topic: str) -> tuple[bool, str]:
@@ -216,14 +253,33 @@ def main():
                 status_text.text("Starting research phase...")
                 progress_bar.progress(40)
 
-                # Execute the crew
+                # Execute the crew with observability metadata
                 crew_instance = AiNewsCrew()
 
                 # Update status
                 status_text.text("Conducting research and analysis...")
                 progress_bar.progress(70)
 
-                result = crew_instance.crew().kickoff(inputs=inputs)
+                # Add session metadata for observability
+                session_metadata = {
+                    "session_id": st.session_state.get(
+                        "session_id",
+                        f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    ),
+                    "topic": topic.strip(),
+                    "timestamp": datetime.now().isoformat(),
+                    "interface": "streamlit",
+                    "openlit_enabled": OPENLIT_ENABLED,
+                }
+
+                # Store session ID for consistency
+                if "session_id" not in st.session_state:
+                    st.session_state.session_id = session_metadata["session_id"]
+
+                # Execute crew with enhanced inputs for tracing
+                enhanced_inputs = {**inputs, "session_metadata": session_metadata}
+
+                result = crew_instance.crew().kickoff(inputs=enhanced_inputs)
 
                 # Update status
                 status_text.text("Finalising report...")
@@ -245,14 +301,35 @@ def main():
                 # Display error with guidance
                 display_error_with_guidance(e)
 
-    # Footer
+    # Footer with observability status
     st.markdown("---")
-    st.markdown(
-        "<div style='text-align: center; color: #666;'>"
-        "Powered by CrewAI • Built with Streamlit"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+
+    # Create footer columns for status information
+    footer_col1, footer_col2 = st.columns([3, 1])
+
+    with footer_col1:
+        st.markdown(
+            "<div style='text-align: center; color: #666;'>"
+            "Powered by CrewAI • Built with Streamlit"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+    with footer_col2:
+        if OPENLIT_ENABLED:
+            st.markdown(
+                "<div style='text-align: center; color: #28a745; font-size: 0.8em;'>"
+                "🔍 Observability: Active"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='text-align: center; color: #ffc107; font-size: 0.8em;'>"
+                "⚠️ Observability: Disabled"
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
 
 if __name__ == "__main__":

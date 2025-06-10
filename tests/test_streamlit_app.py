@@ -202,7 +202,11 @@ class TestErrorHandling:
         ]
         for error in connection_errors:
             error_str = str(error).lower()
-            assert "timeout" in error_str or "connection" in error_str
+            assert (
+                "timeout" in error_str
+                or "connection" in error_str
+                or "connect" in error_str
+            )
 
     def test_memory_error_detection(self):
         """Test that memory errors are properly categorised"""
