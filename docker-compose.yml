@@ -11,12 +11,6 @@ services:
       - "9000:9000"
       - "8123:8123"
     restart: unless-stopped
-    # Resource limits for local development
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
 
   openlit:
     image: ghcr.io/openlit/openlit:latest
@@ -38,12 +32,6 @@ services:
     volumes:
       - openlit-data:/app/client/data
     restart: unless-stopped
-    # Resource limits for local development
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.25'
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.94.0
@@ -64,12 +52,6 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
     restart: unless-stopped
-    # Resource limits for local development
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
 
 volumes:
   clickhouse-data:
