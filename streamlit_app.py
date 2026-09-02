@@ -23,8 +23,19 @@ def initialize_openlit():
     """
     Initialize OpenLIT observability with local OTLP endpoint.
     Uses environment variables for configuration with sensible defaults.
+    Implements singleton pattern to prevent TracerProvider conflicts.
     """
     try:
+        # Check if TracerProvider is already configured to prevent conflicts
+        from opentelemetry import trace
+        from opentelemetry.trace import ProxyTracerProvider
+
+        current_provider = trace.get_tracer_provider()
+
+        # If we already have a configured provider (not the default proxy), skip initialization
+        if not isinstance(current_provider, ProxyTracerProvider):
+            return True
+
         # Set default OTLP endpoint if not configured
         if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
             os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4318"
@@ -44,7 +55,12 @@ def initialize_openlit():
         return True
     except Exception as e:
         # Gracefully handle OpenLIT initialization failures
-        st.warning(f"⚠️ OpenLIT monitoring unavailable: {str(e)}")
+        error_msg = str(e)
+        if "TracerProvider" in error_msg:
+            # If it's a TracerProvider conflict, we might already be initialized
+            return True
+
+        st.warning(f"⚠️ OpenLIT monitoring unavailable: {error_msg}")
         return False
 
 
@@ -113,6 +129,9 @@ def display_research_output(result) -> None:
         mime="text/markdown",
         use_container_width=True,
     )
+
+    # Update button states
+    st.session_state.research_completed = True
 
 
 def display_error_with_guidance(error: Exception) -> None:
@@ -202,15 +221,23 @@ def main():
 
     with col1:
         submit_button = st.button(
-            "🚀 Start Research", type="primary", use_container_width=True
+            "🚀 Start Research",
+            type="primary",
+            use_container_width=True,
+            disabled=st.session_state.research_completed,
         )
 
     with col2:
-        if st.session_state.research_completed:
-            if st.button("🔄 New Research", use_container_width=True):
-                st.session_state.research_completed = False
-                st.session_state.last_topic = ""
-                st.rerun()
+        st.button(
+            "🔄 New Research",
+            use_container_width=True,
+            disabled=not st.session_state.research_completed,
+            on_click=lambda: [
+                st.session_state.__setitem__("research_completed", False),
+                st.session_state.__setitem__("last_topic", ""),
+                st.rerun(),
+            ],
+        )
 
     # Handle form submission
     if submit_button:
